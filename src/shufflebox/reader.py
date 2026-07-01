@@ -1,8 +1,8 @@
 from pathlib import Path
-from mutagen.id3 import ID3
-from mutagen.mp3 import MP3
+from mutagen import File as MutagenFile
 
-AUDIO_EXTENSIONS = {".mp3", ".flac", ".m4a", ".ogg", ".wav"}
+# M4A/AAC omitted deliberately: pygame/SDL playback of it is unreliable across platforms
+AUDIO_EXTENSIONS = {".mp3", ".flac", ".ogg", ".wav"}
 
 
 def read_directory(path):
@@ -12,22 +12,36 @@ def read_directory(path):
 def _read_tags(path):
     track = {
         "filepath": str(path),
-        "title":    "Unknown Title",
+        "title":    path.stem,          # fall back to the filename, not "Unknown"
         "artist":   "Unknown Artist",
         "album":    "Unknown Album",
         "year":     None,
         "duration": None,
     }
     try:
-        tags = ID3(str(path))
-        if "TIT2" in tags: track["title"]  = str(tags["TIT2"])
-        if "TPE1" in tags: track["artist"] = str(tags["TPE1"])
-        if "TALB" in tags: track["album"]  = str(tags["TALB"])
-        if "TDRC" in tags: track["year"]   = int(str(tags["TDRC"])[:4])
+        audio = MutagenFile(str(path), easy=True)
     except Exception:
-        pass
-    try:
-        track["duration"] = int(MP3(str(path)).info.length)
-    except Exception:
-        pass
+        audio = None
+    if audio is None:
+        return track
+
+    if audio.info is not None:
+        track["duration"] = int(audio.info.length)
+    tags = audio.tags or {}
+    track["title"]  = _first(tags, "title")  or path.stem
+    track["artist"] = _first(tags, "artist") or "Unknown Artist"
+    track["album"]  = _first(tags, "album")  or "Unknown Album"
+    track["year"]   = _year(_first(tags, "date"))
     return track
+
+
+def _first(tags, key):
+    value = tags.get(key)
+    return value[0] if value else None
+
+
+def _year(raw):
+    try:
+        return int(str(raw)[:4])
+    except (ValueError, TypeError):
+        return None

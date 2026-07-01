@@ -11,7 +11,7 @@ Spotify's shuffle isn't random — it avoids repetition, weights recent plays, a
 - Back / Pause / Next / Reshuffle controls
 - Back within 3 seconds → previous track; after 3 seconds → restart current
 - iTunes-style library view with Title, Artist, and Duration columns
-- Reads MP3, FLAC, M4A, OGG, and WAV files recursively from any folder
+- Reads MP3, FLAC, OGG, and WAV files recursively from any folder
 
 ## Requirements
 

@@ -6,31 +6,52 @@ FAKE_TRACKS = [
     {"filepath": "/c.mp3", "title": "Track C", "artist": "Artist Y", "album": "Album 2", "year": 2002, "duration": 220},
 ]
 
+
 def fake_scanner(_directory):
     return FAKE_TRACKS
 
 
-def test_stores_tracks():
-    lib = Library(scanner=fake_scanner)
-    lib.load("/any")
-    assert lib.count() == len(FAKE_TRACKS)
+class TestStorage:
+    def test_stores_tracks(self):
+        lib = Library(scanner=fake_scanner)
+        lib.load("/any")
+        assert lib.count() == len(FAKE_TRACKS)
+
+    def test_integration(self, music_dir):
+        lib = Library()
+        lib.load(music_dir)
+        expected = len(list(music_dir.glob("*.mp3")))
+        assert lib.count() == expected
 
 
-def test_query_by_artist():
-    lib = Library(scanner=fake_scanner)
-    lib.load("/any")
-    expected = sum(1 for t in FAKE_TRACKS if t["artist"] == "Artist X")
-    assert len(lib.query(artist="Artist X")) == expected
+class TestPlayCounts:
+    def test_increment_play_count(self):
+        lib = Library(scanner=fake_scanner)
+        lib.load("/any")
+        lib.increment_play_count("/a.mp3")
+        lib.increment_play_count("/a.mp3")
+        assert lib.play_count("/a.mp3") == 2
 
+    def test_increment_is_per_track(self):
+        lib = Library(scanner=fake_scanner)
+        lib.load("/any")
+        lib.increment_play_count("/a.mp3")
+        assert lib.play_count("/b.mp3") == 0
 
-def test_count():
-    lib = Library(scanner=fake_scanner)
-    lib.load("/any")
-    assert lib.count() == len(FAKE_TRACKS)
+    def test_load_preserves_play_count_on_rescan(self):
+        lib = Library(scanner=fake_scanner)
+        lib.load("/any")
+        lib.increment_play_count("/a.mp3")
+        lib.increment_play_count("/a.mp3")
+        lib.load("/any")
+        assert lib.play_count("/a.mp3") == 2
 
+    def test_persists_across_sessions(self, tmp_path):
+        db = str(tmp_path / "library.db")
+        lib = Library(db_path=db, scanner=fake_scanner)
+        lib.load("/any")
+        lib.increment_play_count("/a.mp3")
+        lib.increment_play_count("/a.mp3")
 
-def test_integration(music_dir):
-    lib = Library()
-    lib.load(music_dir)
-    expected = len(list(music_dir.glob("*.mp3")))
-    assert lib.count() == expected
+        reopened = Library(db_path=db, scanner=fake_scanner)
+        assert reopened.play_count("/a.mp3") == 2

@@ -7,3 +7,6 @@ dist/
 build/
 .venv/
 venv/
+
+# Audio fixtures are local-only (personal test files), not committed
+tests/fixtures/

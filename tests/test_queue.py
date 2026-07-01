@@ -29,3 +29,25 @@ class TestQueue:
         q.load(ITEMS)
         q.next()
         assert q.previous() is None
+
+    def test_next_returns_none_when_exhausted(self):
+        q = Queue()
+        q.load(ITEMS)
+        for _ in ITEMS:
+            q.next()
+        assert q.next() is None
+
+    def test_enqueue_front_plays_before_the_rest(self):
+        q = Queue()
+        q.load(ITEMS)
+        q.enqueue_front({"title": "Z"})
+        assert q.next() == {"title": "Z"}
+        assert q.next() == ITEMS[0]
+
+    def test_enqueue_front_preserves_insertion_order(self):
+        q = Queue()
+        q.load([{"title": "X"}, {"title": "Y"}])
+        q.enqueue_front({"title": "A"})
+        q.enqueue_front({"title": "B"})
+        # queue reads A, B, X, Y — consecutive adds keep their order
+        assert [q.next() for _ in range(4)] == [{"title": "A"}, {"title": "B"}, {"title": "X"}, {"title": "Y"}]
