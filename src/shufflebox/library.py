@@ -33,7 +33,15 @@ class Library:
             "year=excluded.year, duration=excluded.duration",
             tracks,
         )
+        self._prune([t["filepath"] for t in tracks])  # drop tracks no longer in the folder
         self.conn.commit()
+
+    def _prune(self, keep):
+        if keep:
+            placeholders = ",".join("?" * len(keep))
+            self.conn.execute(f"DELETE FROM tracks WHERE filepath NOT IN ({placeholders})", keep)
+        else:
+            self.conn.execute("DELETE FROM tracks")
 
     def query(self):
         return self.conn.execute("SELECT * FROM tracks").fetchall()

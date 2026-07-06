@@ -12,6 +12,7 @@ class Session:
         self._player  = player
         self._tracks  = []
         self._active_seed = None
+        self._directory = None
 
     @property
     def tracks(self):
@@ -34,6 +35,7 @@ class Session:
         return self._active_seed
 
     def load(self, directory, seed_text, play):
+        self._directory = directory
         self._library.load(directory)
         self._tracks = self._library.query()
         if not self._tracks:
@@ -42,6 +44,20 @@ class Session:
             self.reshuffle(seed_text)
         else:
             self._load_queue(resolve_seed(seed_text, current=self._active_seed))
+        return True
+
+    def rescan(self):
+        # re-sync the library to the folder's current contents, without disturbing playback;
+        # returns whether the track set changed (so the caller can refresh the view)
+        if self._directory is None:
+            return False
+        before = {t["filepath"] for t in self._tracks}
+        self._library.load(self._directory)
+        self._tracks = self._library.query()
+        after = {t["filepath"] for t in self._tracks}
+        if after == before:
+            return False
+        self._queue.retain(after)  # purge deleted tracks from the queue so they can't play
         return True
 
     def reshuffle(self, seed_text):

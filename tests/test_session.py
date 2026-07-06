@@ -96,3 +96,42 @@ def test_play_now_unknown_filepath_is_noop():
     session, library = make_session(player)
     assert session.play_now("/nope.mp3") is False
     player.play.assert_not_called()
+
+
+class _Folder:
+    def __init__(self, tracks):
+        self.tracks = list(tracks)
+
+    def __call__(self, _directory):
+        return self.tracks
+
+
+def test_rescan_picks_up_folder_changes():
+    folder = _Folder([TRACKS[0]])
+    session = Session(Library(scanner=folder), Queue(), make_player(current=None, elapsed=0, playing=False, paused=False))
+    session.load("/any", "", play=False)
+    assert {t["filepath"] for t in session.tracks} == {"/a.mp3"}
+
+    folder.tracks = [TRACKS[0], TRACKS[1]]  # /b.mp3 appears in the folder
+    assert session.rescan() is True
+    assert {t["filepath"] for t in session.tracks} == {"/a.mp3", "/b.mp3"}
+
+
+def test_rescan_returns_false_when_unchanged():
+    folder = _Folder([TRACKS[0], TRACKS[1]])
+    session = Session(Library(scanner=folder), Queue(), make_player(current=None, elapsed=0, playing=False, paused=False))
+    session.load("/any", "", play=False)
+    assert session.rescan() is False
+
+
+def test_rescan_removes_deleted_track_from_playback():
+    folder = _Folder([TRACKS[0], TRACKS[1]])
+    player = make_player(current=None, elapsed=0, playing=False, paused=False)
+    session = Session(Library(scanner=folder), Queue(), player)
+    session.load("/any", "", play=False)   # queue holds a and b
+    folder.tracks = [TRACKS[0]]            # /b.mp3 deleted from the folder
+    session.rescan()
+    for _ in range(5):                     # advance through the queue (reshuffles when drained)
+        session.next()
+    played = [call.args[0]["filepath"] for call in player.play.call_args_list]
+    assert "/b.mp3" not in played

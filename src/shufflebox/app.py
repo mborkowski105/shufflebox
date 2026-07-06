@@ -25,6 +25,7 @@ class App(tk.Tk):
         self._session = Session(Library(db_path=str(db_path)), Queue(), Player())
         self._build_ui()
         self._load_default_folder()
+        self.bind("<FocusIn>", self._on_focus)  # refresh the library when returning to the app
         self._poll()
 
     def _build_ui(self):
@@ -67,6 +68,11 @@ class App(tk.Tk):
         self._seed.set_seed(self._session.seed)
         self._library_view.populate(self._session.tracks)
         self._reflect()
+
+    def _on_focus(self, event):
+        # only the toplevel regaining focus (returning to the app), not internal widget focus
+        if event.widget is self and self._session.rescan():
+            self._library_view.populate(self._session.tracks)
 
     def _play_selected(self, filepath):
         if self._session.play_now(filepath):

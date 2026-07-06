@@ -15,6 +15,12 @@ class Queue:
         self._items.insert(idx, item)
         self._insert_at = idx + 1
 
+    def retain(self, keep):
+        # drop items whose filepath is no longer in `keep`, keeping the position consistent
+        self._pos = sum(1 for item in self._items[:self._pos] if item["filepath"] in keep)
+        self._items = [item for item in self._items if item["filepath"] in keep]
+        self._insert_at = self._pos
+
     def next(self):
         if self._pos >= len(self._items):
             return None

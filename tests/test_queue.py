@@ -44,6 +44,20 @@ class TestQueue:
         assert q.next() == {"title": "Z"}
         assert q.next() == ITEMS[0]
 
+    def test_retain_drops_removed_track_from_upcoming(self):
+        q = Queue()
+        q.load([{"filepath": "a"}, {"filepath": "b"}, {"filepath": "c"}, {"filepath": "d"}])
+        q.next()                       # play a
+        q.retain({"a", "c", "d"})      # b deleted from the library
+        assert q.next() == {"filepath": "c"}  # b is skipped, not played
+
+    def test_retain_removes_track_from_the_whole_queue(self):
+        q = Queue()
+        q.load([{"filepath": "a"}, {"filepath": "b"}, {"filepath": "c"}])
+        q.retain({"a", "c"})           # b deleted
+        drained = [q.next() for _ in range(3)]
+        assert {"filepath": "b"} not in drained
+
     def test_enqueue_front_preserves_insertion_order(self):
         q = Queue()
         q.load([{"title": "X"}, {"title": "Y"}])

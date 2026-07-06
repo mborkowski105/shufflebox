@@ -11,6 +11,16 @@ def fake_scanner(_directory):
     return FAKE_TRACKS
 
 
+class _Folder:
+    """A scanner whose returned tracks can be changed, to simulate a folder mutating."""
+
+    def __init__(self, tracks):
+        self.tracks = list(tracks)
+
+    def __call__(self, _directory):
+        return self.tracks
+
+
 class TestStorage:
     def test_stores_tracks(self):
         lib = Library(scanner=fake_scanner)
@@ -22,6 +32,14 @@ class TestStorage:
         lib.load(music_dir)
         expected = len(list(music_dir.glob("*.mp3")))
         assert lib.count() == expected
+
+    def test_load_prunes_tracks_no_longer_in_folder(self):
+        folder = _Folder(FAKE_TRACKS)
+        lib = Library(scanner=folder)
+        lib.load("/any")
+        folder.tracks = FAKE_TRACKS[:2]  # /c.mp3 removed from the folder
+        lib.load("/any")
+        assert lib.count() == 2
 
 
 class TestPlayCounts:
@@ -37,6 +55,15 @@ class TestPlayCounts:
         lib.load("/any")
         lib.increment_play_count("/a.mp3")
         assert lib.play_count("/b.mp3") == 0
+
+    def test_pruning_keeps_counts_for_surviving_tracks(self):
+        folder = _Folder(FAKE_TRACKS)
+        lib = Library(scanner=folder)
+        lib.load("/any")
+        lib.increment_play_count("/a.mp3")
+        folder.tracks = FAKE_TRACKS[:2]  # /c.mp3 gone; /a.mp3 survives
+        lib.load("/any")
+        assert lib.play_count("/a.mp3") == 1
 
     def test_load_preserves_play_count_on_rescan(self):
         lib = Library(scanner=fake_scanner)
